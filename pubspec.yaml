@@ -1,0 +1,42 @@
+name: app_music
+description: "A new Flutter project."
+# Prevent the package from being accidentally published to pub.dev
+publish_to: 'none'
+
+# Version and build number for your application
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  audioplayers: ^3.0.1
+  cupertino_icons: ^1.0.6
+  http: ^0.13.5
+  flutter_local_notifications: ^12.0.0
+  shared_preferences: ^2.0.15
+  sqflite: ^2.0.0+4
+  path: ^1.8.3
+  image_picker: ^0.8.5+3  # Cập nhật phiên bản mới nhất
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: "^0.14.1"
+  flutter_lints: ^3.0.0
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon_kaitokid.jpg"
+
+flutter:
+  uses-material-design: true
+
+  # Add assets to your application
+  assets:
+    - assets/songs.json
+    - assets/hinhnen.jpg
+    - assets/icon_kaitokid.jpg
