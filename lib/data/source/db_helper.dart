@@ -39,6 +39,7 @@ class DatabaseHelper {
           avatar TEXT  // Thêm cột avatar
         )
       ''');
+
       },
       onUpgrade: (db, oldVersion, newVersion) {
         if (oldVersion < 2) {
@@ -48,7 +49,6 @@ class DatabaseHelper {
       },
     );
   }
-
 
   // Thêm người dùng vào cơ sở dữ liệu
   Future<int> insertUser(
@@ -83,6 +83,30 @@ class DatabaseHelper {
       return result.first;
     }
     return null;
+  }
+
+  // Cập nhật thông tin người dùng (bao gồm email, tên người dùng, số điện thoại, thành phố và avatar)
+  Future<int> updateUser(
+      int userId,
+      String? userName,
+      String? email,
+      String? phoneNumber,
+      String? city,
+      String? avatar,
+      ) async {
+    final db = await database;
+    return await db.update(
+      'users',
+      {
+        'user_name': userName,
+        'email': email,
+        'phone_number': phoneNumber,
+        'city': city,
+        'avatar': avatar,
+      },
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
   }
 
   // Cập nhật avatar cho người dùng

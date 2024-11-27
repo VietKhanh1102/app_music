@@ -21,28 +21,24 @@ class AccountTab extends StatelessWidget {
             // Kiểm tra xem người dùng đã đăng nhập chưa
             if (userManager.isLoggedIn && user != null) ...[
               // Hiển thị tên người dùng
-              Text('Tên người dùng: ${user.userName}', style: const TextStyle(fontSize: 18)),
+              buildUserInfoRow('Tên người dùng', user.userName),
               const SizedBox(height: 8),
-              // Hiển thị email người dùng
-              Text('Email: ${user.email}', style: const TextStyle(fontSize: 18)),
+              // Hiển thị email
+              buildUserInfoRow('Email', user.email),
               const SizedBox(height: 8),
-              // Hiển thị số điện thoại người dùng (nếu có)
-              if (user.phoneNumber != null)
-                Text('Số điện thoại: ${user.phoneNumber}', style: const TextStyle(fontSize: 18)),
+              // Hiển thị số điện thoại
+              buildUserInfoRow('Số điện thoại', user.phoneNumber),
               const SizedBox(height: 8),
-              // Hiển thị thành phố của người dùng (nếu có)
-              if (user.city != null)
-                Text('Thành phố: ${user.city}', style: const TextStyle(fontSize: 18)),
+              // Hiển thị thành phố
+              buildUserInfoRow('Thành phố', user.city),
               const SizedBox(height: 8),
-              // Hiển thị ảnh đại diện (nếu có)
-              if (user.avatar != null)
-                Text('Ảnh đại diện: ${user.avatar}', style: const TextStyle(fontSize: 18)),
+              // Hiển thị avatar
+              buildUserInfoRow('Avatar', user.avatar),
               const SizedBox(height: 24),
 
               // Nút chỉnh sửa thông tin người dùng
               ElevatedButton(
                 onPressed: () {
-                  // Chuyển đến màn hình chỉnh sửa thông tin người dùng
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => EditProfileScreen(user: user)),
@@ -55,22 +51,43 @@ class AccountTab extends StatelessWidget {
               // Nút đăng xuất
               ElevatedButton(
                 onPressed: () async {
-                  await userManager.logout(); // Đăng xuất người dùng
+                  await userManager.logout();
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (context) => LoginScreen()),
-                  ); // Điều hướng về màn hình đăng nhập
+                  );
                 },
                 child: const Text('Đăng Xuất'),
               ),
             ] else
             // Nếu người dùng chưa đăng nhập
               const Center(
-                child: Text('Chưa có thông tin tài khoản', style: TextStyle(fontSize: 18)),
+                child: Text(
+                  'Chưa có thông tin tài khoản',
+                  style: TextStyle(fontSize: 18),
+                ),
               ),
           ],
         ),
       ),
+    );
+  }
+
+  // Hàm tiện ích để xây dựng các hàng thông tin người dùng
+  Widget buildUserInfoRow(String label, String? value) {
+    return Row(
+      children: [
+        Text(
+          '$label: ',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        Expanded(
+          child: Text(
+            value ?? 'Không có dữ liệu',
+            style: const TextStyle(fontSize: 16),
+          ),
+        ),
+      ],
     );
   }
 }

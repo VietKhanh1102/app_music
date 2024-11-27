@@ -17,17 +17,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController cityController = TextEditingController();
-  final TextEditingController avatarController = TextEditingController(); // URL ảnh đại diện (nếu có)
+  final TextEditingController avatarController =
+      TextEditingController(); // URL ảnh đại diện
 
   @override
   void initState() {
     super.initState();
     // Khởi tạo các trường với thông tin người dùng hiện tại
-    usernameController.text = widget.user.userName!;
-    emailController.text = widget.user.email;
+    usernameController.text = widget.user.userName ?? '';
+    emailController.text = widget.user.email ?? '';
     phoneController.text = widget.user.phoneNumber ?? '';
     cityController.text = widget.user.city ?? '';
-    avatarController.text = widget.user.avatar ?? ''; // Nếu có URL avatar
+    avatarController.text = widget.user.avatar ?? '';
   }
 
   @override
@@ -40,97 +41,116 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Trường nhập tên người dùng
-              TextFormField(
-                controller: usernameController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên người dùng',
-                  border: OutlineInputBorder(),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Trường nhập tên người dùng
+                TextFormField(
+                  controller: usernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Tên người dùng',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập tên người dùng';
+                    }
+                    return null;
+                  },
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Vui lòng nhập tên người dùng';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              // Trường nhập email
-              TextFormField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                // Trường nhập email
+                TextFormField(
+                  controller: emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập email';
+                    }
+                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                      return 'Email không hợp lệ';
+                    }
+                    return null;
+                  },
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Vui lòng nhập email';
-                  }
-                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                    return 'Email không hợp lệ';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              // Trường nhập số điện thoại
-              TextFormField(
-                controller: phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Số điện thoại',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                // Trường nhập số điện thoại
+                TextFormField(
+                  controller: phoneController,
+                  decoration: const InputDecoration(
+                    labelText: 'Số điện thoại',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              // Trường nhập thành phố
-              TextFormField(
-                controller: cityController,
-                decoration: const InputDecoration(
-                  labelText: 'Thành phố',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                // Trường nhập thành phố
+                TextFormField(
+                  controller: cityController,
+                  decoration: const InputDecoration(
+                    labelText: 'Thành phố',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              // Trường nhập URL avatar (hoặc có thể chọn ảnh từ thư viện)
-              TextFormField(
-                controller: avatarController,
-                decoration: const InputDecoration(
-                  labelText: 'Avatar (URL hoặc file ảnh)',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                // Trường nhập URL avatar
+                TextFormField(
+                  controller: avatarController,
+                  decoration: const InputDecoration(
+                    labelText: 'Avatar (URL hoặc file ảnh)',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              // Nút lưu thay đổi
-              ElevatedButton(
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    // Cập nhật thông tin người dùng
-                    User updatedUser = User(
-                      userName: usernameController.text,
-                      email: emailController.text,
-                      phoneNumber: phoneController.text.isEmpty ? null : phoneController.text,
-                      city: cityController.text.isEmpty ? null : cityController.text,
-                      avatar: avatarController.text.isEmpty ? null : avatarController.text,
-                      password: '', // Mật khẩu không thay đổi
-                    );
+                const SizedBox(height: 24),
+                // Nút lưu thay đổi
+                ElevatedButton(
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      // Tạo đối tượng User với dữ liệu cập nhật
+                      User updatedUser = User(
+                        id: widget.user.id,
+                        // Lấy ID từ người dùng hiện tại
+                        userName: usernameController.text,
+                        email: emailController.text,
+                        phoneNumber: phoneController.text.isEmpty
+                            ? null
+                            : phoneController.text,
+                        city: cityController.text.isEmpty
+                            ? null
+                            : cityController.text,
+                        avatar: avatarController.text.isEmpty
+                            ? null
+                            : avatarController.text,
+                        password: widget.user.password, // Giữ nguyên mật khẩu
+                      );
 
-                    // Cập nhật thông tin người dùng qua UserManager
-                    await UserManager().setCurrentUser(updatedUser);
+                      // Gọi UserManager để cập nhật thông tin
+                      bool success =
+                          await UserManager().updateUser(updatedUser);
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Cập nhật thông tin thành công!')),
-                    );
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Cập nhật thông tin thành công!')),
+                        );
 
-                    // Quay lại màn hình tài khoản sau khi chỉnh sửa
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Text('Lưu Thay Đổi'),
-              ),
-            ],
+                        // Quay lại màn hình tài khoản sau khi chỉnh sửa
+                        Navigator.pop(context);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Cập nhật thông tin thất bại!')),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Lưu Thay Đổi'),
+                )
+              ],
+            ),
           ),
         ),
       ),

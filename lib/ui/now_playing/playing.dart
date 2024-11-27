@@ -97,6 +97,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final songStrings =
     favoriteSongs.map((song) => jsonEncode(song.toJson())).toList();
     await prefs.setStringList('favorite_songs', songStrings);
+
+    // Đảm bảo khi thay đổi yêu thích thì cập nhật lại `FavoriteTab`
+    if (mounted) {
+      setState(() {
+        // Cập nhật lại danh sách yêu thích
+      });
+    }
   }
 
   void toggleShuffle() {

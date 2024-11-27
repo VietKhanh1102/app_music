@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/model/song.dart';
+import '../../data/repository/user_manager.dart';
 
 class FavoriteTab extends StatefulWidget {
   const FavoriteTab({super.key});
@@ -20,8 +21,28 @@ class _FavoriteTabState extends State<FavoriteTab> {
   }
 
   Future<void> _loadFavoriteSongs() async {
+    final userManager = UserManager();
+
+    // Gọi init() để khởi tạo UserManager
+    await userManager.init();
+
+    final currentUser = userManager.currentUser;
+
+    if (currentUser == null) {
+      print("No current user found.");
+      return;
+    }
+
+    // Lấy danh sách bài hát yêu thích theo userId
     final prefs = await SharedPreferences.getInstance();
-    final savedSongs = prefs.getStringList('favorite_songs') ?? [];
+    final savedSongs = prefs.getStringList('favorite_songs_${currentUser.id}') ?? [];
+
+    if (savedSongs.isEmpty) {
+      print("No favorite songs found in SharedPreferences.");
+    }
+
+    // In ra dữ liệu để kiểm tra
+    print("Saved songs: $savedSongs");
 
     setState(() {
       favoriteSongs = savedSongs
@@ -115,9 +136,18 @@ class _FavoriteTabState extends State<FavoriteTab> {
       favoriteSongs.removeWhere((s) => s.id == song.id);
     });
 
+    final userManager = UserManager();
+    final currentUser = userManager.currentUser;
+
+    if (currentUser == null) {
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
-    final songStrings =
-    favoriteSongs.map((s) => jsonEncode(s.toJson())).toList();
-    await prefs.setStringList('favorite_songs', songStrings);
+    final songStrings = favoriteSongs.map((s) => jsonEncode(s.toJson())).toList();
+
+    // Lưu lại danh sách bài hát yêu thích của người dùng vào SharedPreferences
+    await prefs.setStringList('favorite_songs_${currentUser.id}', songStrings);
   }
 }
+

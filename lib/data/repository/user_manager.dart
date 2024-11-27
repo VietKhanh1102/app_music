@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../model/user.dart';
+import '../source/db_helper.dart';
 class UserManager {
   static final UserManager _instance = UserManager._internal();
   SharedPreferences? _prefs;
@@ -50,5 +51,38 @@ class UserManager {
     _isLoggedIn = false;
     await _prefs?.remove('user');
     await _prefs?.setBool('isLoggedIn', false); // Cập nhật trạng thái đăng xuất
+  }
+
+  // Cập nhật thông tin người dùng trong cơ sở dữ liệu
+  Future<void> updateUserInDatabase(int userId, User updatedUser) async {
+    await DatabaseHelper().updateUser(
+      userId,
+      updatedUser.userName,
+      updatedUser.email,
+      updatedUser.phoneNumber,
+      updatedUser.city,
+      updatedUser.avatar,
+    );
+  }
+  Future<bool> updateUser(User updatedUser) async {
+    if (updatedUser.id == null) {
+      // Trường hợp không có ID, không thể cập nhật
+      return false;
+    }
+
+    try {
+      // Cập nhật trong cơ sở dữ liệu
+      await updateUserInDatabase(
+        updatedUser.id!,
+        updatedUser,
+      );
+
+      // Lưu lại thông tin mới vào SharedPreferences
+      await setCurrentUser(updatedUser);
+      return true;
+    } catch (e) {
+      print('Lỗi khi cập nhật thông tin người dùng: $e');
+      return false;
+    }
   }
 }
