@@ -1,6 +1,8 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
+import '../model/model_favorite.dart';
+
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
@@ -21,30 +23,45 @@ class DatabaseHelper {
   // Khởi tạo cơ sở dữ liệu và tạo bảng nếu cần
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'user_database.db'); // Tạo file database
+    final path = join(dbPath, 'user_database.db');
 
     return openDatabase(
       path,
-      version: 2, // Cập nhật phiên bản lên 2
-      onCreate: (db, version) {
-        // Tạo bảng khi cơ sở dữ liệu mới
-        db.execute(''' 
-        CREATE TABLE users(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          email TEXT NOT NULL,
-          password TEXT NOT NULL,
-          user_name TEXT,
-          city TEXT,
-          phone_number TEXT,
-          avatar TEXT  // Thêm cột avatar
-        )
-      ''');
+      version: 4, // Cập nhật phiên bản lên 4
+      onCreate: (db, version) async {
+        // Tạo bảng users
+        await db.execute(''' 
+          CREATE TABLE users(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            password TEXT NOT NULL,
+            user_name TEXT,
+            city TEXT,
+            phone_number TEXT,
+            avatar TEXT
+          )
+        ''');
 
+        // Tạo bảng favorites với trường 'favorite' kiểu INTEGER (0 hoặc 1)
+        await db.execute(''' 
+          CREATE TABLE favorites(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            song_id TEXT NOT NULL,
+            song_name TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            favorite INTEGER NOT NULL,  -- Sử dụng kiểu INTEGER cho trường 'favorite'
+            FOREIGN KEY (user_id) REFERENCES users(id)
+          )
+        ''');
       },
-      onUpgrade: (db, oldVersion, newVersion) {
-        if (oldVersion < 2) {
-          // Thêm cột avatar vào bảng nếu không có
-          db.execute('ALTER TABLE users ADD COLUMN avatar TEXT');
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 4) {
+          // Thêm trường 'favorite' vào bảng favorites với kiểu INTEGER
+          await db.execute(''' 
+            ALTER TABLE favorites
+            ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0;  -- Mặc định là 0 (false)
+          ''');
         }
       },
     );
@@ -133,5 +150,55 @@ class DatabaseHelper {
       return result.first;
     }
     return null;
+  }
+
+  // Lấy danh sách bài hát yêu thích dưới dạng List<Favorite>
+  Future<List<Favorite>> getFavorites(int userId) async {
+    final db = await database;
+    final result = await db.query(
+      'favorites',
+      where: 'user_id = ? AND favorite = ?',
+      whereArgs: [userId, 1],  // Lọc các bài hát yêu thích (favorite = 1)
+      orderBy: 'created_at DESC',
+    );
+
+    // Chuyển danh sách kết quả từ Map sang List<Favorite>
+    return List.generate(result.length, (i) {
+      return Favorite.fromMap(result[i]);
+    });
+  }
+
+  // Thêm bài hát yêu thích
+  Future<int> addFavorite(int userId, String songId, String songName) async {
+    final db = await database;
+    return await db.insert('favorites', {
+      'user_id': userId,
+      'song_id': songId,
+      'song_name': songName,
+      'created_at': DateTime.now().toIso8601String(),
+      'favorite': 1,  // Gán giá trị 1 (true) cho trường favorite
+    });
+  }
+
+  // Xóa bài hát yêu thích
+  Future<int> removeFavorite(int userId, String songId) async {
+    final db = await database;
+    return await db.update(
+      'favorites',
+      {'favorite': 0},  // Đặt trường favorite thành 0 (false)
+      where: 'user_id = ? AND song_id = ?',
+      whereArgs: [userId, songId],
+    );
+  }
+
+  // Kiểm tra xem bài hát đã yêu thích hay chưa
+  Future<bool> isFavorite(int userId, String songId) async {
+    final db = await database;
+    final result = await db.query(
+      'favorites',
+      where: 'user_id = ? AND song_id = ? AND favorite = ?',
+      whereArgs: [userId, songId, 1],  // Kiểm tra trường favorite = 1 (true)
+    );
+    return result.isNotEmpty;
   }
 }

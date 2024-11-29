@@ -1,27 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../data/model/model_favorite.dart';
 import '../../data/model/song.dart';
+import '../../data/repository/user_manager.dart';
+import '../../data/source/db_helper.dart';
 import 'musicplayer.dart';
 
-class NowPlaying extends StatelessWidget {
-  const NowPlaying({super.key, required this.playingSong, required this.songs});
-
-  final Song playingSong;
-  final List<Song> songs;
-
-  @override
-  Widget build(BuildContext context) {
-    return NowPlayingPage(
-      songs: songs,
-      playingSong: playingSong,
-    );
-  }
-}
-
 class NowPlayingPage extends StatefulWidget {
-  const NowPlayingPage(
-      {super.key, required this.songs, required this.playingSong});
+  const NowPlayingPage({super.key, required this.songs, required this.playingSong});
 
   final Song playingSong;
   final List<Song> songs;
@@ -39,16 +25,23 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   Duration currentPosition = Duration.zero;
   Duration totalDuration = Duration.zero;
   late MusicPlayer _musicPlayer;
-  List<Song> favoriteSongs = [];
+  final DatabaseHelper _databaseHelper = DatabaseHelper();
+  final UserManager _userManager = UserManager(); // Khởi tạo UserManager
+  int? userId;
 
   @override
   void initState() {
     super.initState();
+    _initializeUser(); // Lấy thông tin người dùng
     _musicPlayer = MusicPlayer();
-    currentSongIndex =
-        widget.songs.indexWhere((song) => song.id == widget.playingSong.id);
+    currentSongIndex = widget.songs.indexWhere((song) => song.id == widget.playingSong.id);
 
-    _loadFavoriteSongs();
+    // Kiểm tra trạng thái yêu thích sau khi lấy userId
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (userId != null) {
+        _checkFavoriteStatus();
+      }
+    });
 
     // Lắng nghe sự thay đổi của vị trí bài hát
     _musicPlayer.onPositionChanged.listen((position) {
@@ -70,41 +63,52 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     });
   }
 
-  Future<void> _loadFavoriteSongs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedSongs = prefs.getStringList('favorite_songs') ?? [];
-
-    setState(() {
-      favoriteSongs = savedSongs
-          .map((songString) => Song.fromJson(jsonDecode(songString)))
-          .toList();
-      isFavorite = favoriteSongs.any((song) => song.id == widget.playingSong.id);
-    });
-  }
-
-  void toggleFavorite() async {
-    final currentSong = widget.songs[currentSongIndex];
-    setState(() {
-      if (isFavorite) {
-        favoriteSongs.removeWhere((song) => song.id == currentSong.id);
-      } else {
-        favoriteSongs.add(currentSong);
-      }
-      isFavorite = !isFavorite;
-    });
-
-    final prefs = await SharedPreferences.getInstance();
-    final songStrings =
-    favoriteSongs.map((song) => jsonEncode(song.toJson())).toList();
-    await prefs.setStringList('favorite_songs', songStrings);
-
-    // Đảm bảo khi thay đổi yêu thích thì cập nhật lại `FavoriteTab`
-    if (mounted) {
+  Future<void> _initializeUser() async {
+    await _userManager.init(); // Khởi tạo UserManager
+    if (_userManager.currentUser != null) {
       setState(() {
-        // Cập nhật lại danh sách yêu thích
+        userId = _userManager.currentUser!.id;
       });
     }
   }
+
+  // Kiểm tra trạng thái yêu thích của bài hát trong cơ sở dữ liệu
+  Future<void> _checkFavoriteStatus() async {
+    if (userId == null) return;
+    final isFav = await _databaseHelper.isFavorite(userId!, widget.playingSong.id);
+    setState(() {
+      isFavorite = isFav; // Cập nhật trạng thái yêu thích khi mở trang
+    });
+  }
+  
+  // Thêm hoặc xóa bài hát yêu thích và lưu trạng thái vào cơ sở dữ liệu
+  Future<void> toggleFavorite() async {
+    if (userId == null) return;
+
+    final currentSong = widget.songs[currentSongIndex];
+
+    if (isFavorite) {
+      final removed = await _databaseHelper.removeFavorite(userId!, currentSong.id);
+      if (removed > 0) {
+        setState(() {
+          isFavorite = false; // Cập nhật trạng thái UI ngay lập tức
+        });
+      }
+    } else {
+      final added = await _databaseHelper.addFavorite(
+        userId!,
+        currentSong.id,
+        currentSong.title,
+      );
+      if (added > 0) {
+        setState(() {
+          isFavorite = true; // Cập nhật trạng thái UI ngay lập tức
+        });
+      }
+    }
+  }
+
+
 
   void toggleShuffle() {
     setState(() {
@@ -121,8 +125,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   void playNextSong() {
     setState(() {
       if (isShuffle) {
-        currentSongIndex = (currentSongIndex + (widget.songs.length - 1)) %
-            widget.songs.length;
+        currentSongIndex = (currentSongIndex + (widget.songs.length - 1)) % widget.songs.length;
       } else {
         currentSongIndex = (currentSongIndex + 1) % widget.songs.length;
       }
@@ -139,11 +142,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   void playPreviousSong() {
     setState(() {
       if (isShuffle) {
-        currentSongIndex =
-            (currentSongIndex - 1 + widget.songs.length) % widget.songs.length;
+        currentSongIndex = (currentSongIndex - 1 + widget.songs.length) % widget.songs.length;
       } else {
-        currentSongIndex =
-            (currentSongIndex - 1 + widget.songs.length) % widget.songs.length;
+        currentSongIndex = (currentSongIndex - 1 + widget.songs.length) % widget.songs.length;
       }
 
       if (isPlaying) {
@@ -168,8 +169,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   void onSliderChanged(double value) {
     setState(() {
-      currentPosition =
-          Duration(seconds: value.toInt().clamp(0, totalDuration.inSeconds));
+      currentPosition = Duration(seconds: value.toInt().clamp(0, totalDuration.inSeconds));
     });
     _musicPlayer.seekTo(currentPosition);
   }
@@ -182,6 +182,12 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       appBar: AppBar(
         title: const Text('Now Playing'),
         backgroundColor: Colors.lightGreenAccent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context, isFavorite);
+          },
+        ),
         actions: [
           IconButton(
             icon: Icon(
@@ -196,6 +202,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
           ),
         ],
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

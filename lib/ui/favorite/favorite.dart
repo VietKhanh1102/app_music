@@ -1,53 +1,32 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../data/model/song.dart';
-import '../../data/repository/user_manager.dart';
+import '../../data/model/model_favorite.dart';
+import '../../data/source/db_helper.dart';
 
 class FavoriteTab extends StatefulWidget {
-  const FavoriteTab({super.key});
+  final int userId; // Biến để lưu id người dùng
+
+  const FavoriteTab({super.key, required this.userId}); // Constructor nhận id người dùng
 
   @override
-  State<FavoriteTab> createState() => _FavoriteTabState();
+  _FavoriteTabState createState() => _FavoriteTabState();
 }
 
 class _FavoriteTabState extends State<FavoriteTab> {
-  List<Song> favoriteSongs = [];
+  late List<Favorite> favoriteSongs = []; // Danh sách bài hát yêu thích
+  late DatabaseHelper dbHelper; // Đối tượng DbHelper để truy vấn cơ sở dữ liệu
 
   @override
   void initState() {
     super.initState();
-    _loadFavoriteSongs();
+    dbHelper = DatabaseHelper(); // Khởi tạo đối tượng DbHelper
+    _loadFavoriteSongs(); // Tải danh sách bài hát yêu thích khi màn hình được tạo
   }
 
+  // Hàm tải danh sách bài hát yêu thích từ cơ sở dữ liệu
   Future<void> _loadFavoriteSongs() async {
-    final userManager = UserManager();
-
-    // Gọi init() để khởi tạo UserManager
-    await userManager.init();
-
-    final currentUser = userManager.currentUser;
-
-    if (currentUser == null) {
-      print("No current user found.");
-      return;
-    }
-
-    // Lấy danh sách bài hát yêu thích theo userId
-    final prefs = await SharedPreferences.getInstance();
-    final savedSongs = prefs.getStringList('favorite_songs_${currentUser.id}') ?? [];
-
-    if (savedSongs.isEmpty) {
-      print("No favorite songs found in SharedPreferences.");
-    }
-
-    // In ra dữ liệu để kiểm tra
-    print("Saved songs: $savedSongs");
-
+    List<Favorite> favorites = await dbHelper.getFavorites(widget.userId); // Lấy danh sách bài hát yêu thích từ DB
     setState(() {
-      favoriteSongs = savedSongs
-          .map((songJson) => Song.fromJson(jsonDecode(songJson)))
-          .toList();
+      favoriteSongs = favorites; // Cập nhật danh sách yêu thích trong state
     });
   }
 
@@ -55,74 +34,49 @@ class _FavoriteTabState extends State<FavoriteTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Favorite Songs'),
+        title: const Text('Danh Sách Yêu Thích'),
         backgroundColor: Colors.lightGreenAccent,
         centerTitle: true,
-        elevation: 0,
       ),
       body: favoriteSongs.isEmpty
-          ? const Center(
-        child: Text(
-          'No favorite songs yet.',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w400,
-            color: Colors.grey,
-          ),
-        ),
-      )
+          ? const Center(child: CircularProgressIndicator()) // Hiển thị loading nếu chưa có dữ liệu
           : Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: ListView.separated(
-          itemCount: favoriteSongs.length,
-          separatorBuilder: (context, index) => const Divider(),
+        padding: const EdgeInsets.all(8.0),
+        child: ListView.builder(
+          itemCount: favoriteSongs.length, // Số lượng bài hát yêu thích
           itemBuilder: (context, index) {
-            final song = favoriteSongs[index];
+            final favorite = favoriteSongs[index]; // Lấy bài hát yêu thích tại index
             return Card(
+              elevation: 5,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(15),
               ),
-              elevation: 2,
+              margin: const EdgeInsets.symmetric(vertical: 8),
               child: ListTile(
-                leading: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    song.image,
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Image.asset(
-                        'assets/hinhnen.jpg',
-                        width: 50,
-                        height: 50,
-                        fit: BoxFit.cover,
-                      );
-                    },
-                  ),
-                ),
+
                 title: Text(
-                  song.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
+                  favorite.songName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text(
-                  song.artist,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                  ),
+                  'ID: ${favorite.songId}',
+                  style: TextStyle(color: Colors.grey[600]),
                 ),
                 trailing: IconButton(
-                  icon: const Icon(
-                    Icons.delete,
-                    color: Colors.redAccent,
+                  icon: Icon(
+                    Icons.play_circle_fill,
+                    color: Colors.teal,
+                    size: 30,
                   ),
                   onPressed: () {
-                    _removeFromFavorites(song);
+                    // Thực hiện phát bài hát khi người dùng nhấn
+                    print('Phát bài hát: ${favorite.songName}');
                   },
                 ),
+                onTap: () {
+                  // Xử lý khi người dùng nhấn vào bài hát yêu thích
+                  print('Xem chi tiết bài hát: ${favorite.songName}');
+                },
               ),
             );
           },
@@ -130,24 +84,4 @@ class _FavoriteTabState extends State<FavoriteTab> {
       ),
     );
   }
-
-  Future<void> _removeFromFavorites(Song song) async {
-    setState(() {
-      favoriteSongs.removeWhere((s) => s.id == song.id);
-    });
-
-    final userManager = UserManager();
-    final currentUser = userManager.currentUser;
-
-    if (currentUser == null) {
-      return;
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    final songStrings = favoriteSongs.map((s) => jsonEncode(s.toJson())).toList();
-
-    // Lưu lại danh sách bài hát yêu thích của người dùng vào SharedPreferences
-    await prefs.setStringList('favorite_songs_${currentUser.id}', songStrings);
-  }
 }
-

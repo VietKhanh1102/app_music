@@ -7,6 +7,7 @@ import 'package:app_music/ui/user/users.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/model/song.dart';
+import '../../data/repository/user_manager.dart';
 import '../now_playing/playing.dart';
 
 class MusicApp extends StatelessWidget {
@@ -34,18 +35,38 @@ class MusicHomePage extends StatefulWidget {
 }
 
 class _MusicHomePageState extends State<MusicHomePage> {
-  final List<Widget> _tabs = [
-    const HomeTab(),
-    const FavoriteTab(),
-    AccountTab(),
-    const SettingTab(),
-  ];
+  final List<Widget> _tabs = [];
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserId();
+  }
+
+  // Hàm để lấy ID người dùng từ UserManager
+  Future<void> _loadUserId() async {
+    // Lấy thông tin người dùng từ UserManager
+    await UserManager().init();  // Đảm bảo UserManager đã được khởi tạo
+    int? userId = UserManager().currentUser?.id;
+
+    // Kiểm tra xem userId có tồn tại không, rồi tạo các tab
+    if (userId != null) {
+      setState(() {
+        _tabs.addAll([
+          const HomeTab(),
+          FavoriteTab(userId: userId),  // Truyền id vào FavoriteTab
+          AccountTab(),
+          const SettingTab(),
+        ]);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _tabs[_currentIndex],
+      body: _tabs.isEmpty ? const Center(child: CircularProgressIndicator()) : _tabs[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         selectedItemColor: Theme.of(context).colorScheme.primary,
@@ -65,6 +86,7 @@ class _MusicHomePageState extends State<MusicHomePage> {
     );
   }
 }
+
 
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
@@ -161,7 +183,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => NowPlaying(
+        builder: (context) => NowPlayingPage(
           songs: songs,
           playingSong: song,
         ),
